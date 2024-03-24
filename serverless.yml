@@ -1,0 +1,99 @@
+service: api-service
+frameworkVersion: "3"
+
+custom:
+  webpack:
+    webpackConfig: './webpack.config.js'
+  env: ${env:ENVIRONMENT, 'dev'}
+  region: ${opt:REGION, 'us-east-1'}
+  accountId: ${env:AWS_ACCOUNT_ID, aws:accountId}
+  postfixes:
+    dev: '-dev'
+    uat: '-uat'
+    prod: ''
+  postfix: ${self:custom.postfixes.${self:custom.env}}
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  stage: ${self:custom.env}
+  region: ${self:custom.region}
+  environment: ${file(./config/sls.environments.yml):${self:custom.env}}
+  stackName: ${self:service}${self:custom.postfix}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+      Resource: "arn:aws:sqs:us-east-1:${self:custom.accountId}:EventQ"
+    - Effect: Allow
+      Action:
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+      Resource: "arn:aws:sqs:us-east-1:${self:custom.accountId}:EventQ"
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+      Resource: "arn:aws:sqs:us-east-1:${self:custom.accountId}:DLQ"
+    - Effect: Allow
+      Action:
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+      Resource: "arn:aws:sqs:us-east-1:${self:custom.accountId}:DLQ"
+
+functions:
+  QueueHandler:
+    handler: src/functions/QueueHandler/index.handler
+    timeout: 60
+    events:
+      - http:
+          path: /subscribe
+          method: post
+
+  TransformHandler:
+    handler: src/functions/TransformHandler/index.handler
+    timeout: 60
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - EventQ
+              - Arn
+          # batchSize: 10
+
+  DLQHandler:
+    handler: src/functions/DLQHandler/index.handler
+    timeout: 60
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - EventDLQ
+              - Arn
+
+plugins:
+  - serverless-webpack
+
+package:
+  individually: true
+
+resources:
+  Resources:
+    EventQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: EventQ
+        VisibilityTimeout: 60
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - EventDLQ
+              - Arn
+          maxReceiveCount: 3
+        
+
+    EventDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: DLQ
+        VisibilityTimeout: 60
+

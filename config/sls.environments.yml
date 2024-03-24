@@ -1,0 +1,23 @@
+dev:
+  QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/637423183217/EventQ'
+  DLQ_URL: 'https://sqs.us-east-1.amazonaws.com/637423183217/EventDLQ'
+  ARBITRATION_API_URL: 'https://uat.concordnow.com/api/rest/1/organizations/1272/auto/02vzCOG7M0rTSKUTqrBP7d'
+  CAREGIVER_API_URL: 'https://uat.concordnow.com/api/rest/1/organizations/1272/auto/WO4Lu5'
+  NON_CAREGIVER_API_URL: 'https://uat.concordnow.com/api/rest/1/organizations/1272/auto/4uWDQg'
+  API_KEY: 'atbuttSxQc+xjzfHZqzi8g'
+
+# uat:
+  # QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/637423183217/EventQ.fifo'
+  # DLQ_URL: 'https://sqs.us-east-1.amazonaws.com/637423183217/EventDLQ.fifo'
+  # ARBITRATION_API_URL: 'https://uat.concordnow.com/api/rest/1/organizations/1272/auto/WO4Lu5'
+  # CAREGIVER_API_URL: https://uat.concordnow.com/api/rest/1/organizations/1272/auto/WO4Lu5
+  # NON_CAREGIVER_API_URL: https://uat.concordnow.com/api/rest/1/organizations/1272/auto/4uWDQg
+  # API_KEY: 'atbuttSxQc+xjzfHZqzi8g'
+
+# prod:
+  # QUEUE_URL: 'https://sqs.us-east-1.amazonaws.com/637423183217/EventQ.fifo'
+  # DLQ_URL: 'https://sqs.us-east-1.amazonaws.com/637423183217/EventDLQ.fifo'
+  # ARBITRATION_API_URL: 'https://uat.concordnow.com/api/rest/1/organizations/1272/auto/WO4Lu5'
+  # CAREGIVER_API_URL: https://uat.concordnow.com/api/rest/1/organizations/1272/auto/WO4Lu5
+  # NON_CAREGIVER_API_URL: https://uat.concordnow.com/api/rest/1/organizations/1272/auto/4uWDQg
+  # API_KEY: 'atbuttSxQc+xjzfHZqzi8g'
