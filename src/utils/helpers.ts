@@ -1,22 +1,10 @@
-import states from "states-us";
-export function getOperatingGroup(operatingGroup: string) {
-  switch (operatingGroup) {
-    case "Community Support Services":
-      return "CSS";
-    case "Adult Day Health":
-      return "ADH";
-    case "NeuroRestorative":
-      return "Neuro";
-    case "Children Family Services":
-      return "CFS";
-    case "Corporate":
-      return "Corp";
-    default:
-      return undefined;
-  }
-}
+export function getEmailByContactType(employeeData: any) {
+  const personalEmail = employeeData.EmailAddresses.find(
+    (email: any) => email.ContactType === "Personal Email"
+  );
+  const businessEmail = employeeData.EmailAddresses.find(
+    (email: any) => email.ContactType === "Business Email"
+  );
 
-export function getStateFullName(abbreviation: string): string | undefined {
-  const state = states.find((s) => s.abbreviation === abbreviation);
-  return state ? state.name : undefined;
+  return { personalEmail, businessEmail };
 }

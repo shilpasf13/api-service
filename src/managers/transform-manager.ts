@@ -1,28 +1,25 @@
-import { getOperatingGroup, getStateFullName } from "../utils/helpers";
 import axios from "axios";
 import { log } from "../utils/logger";
+import { getEmailByContactType } from "../utils/helpers";
 
 export class TransformManager {
   constructor() {}
 
   public getArbitrationRequestBody(parsedBody: any) {
-    const operatingGroup = getOperatingGroup(parsedBody.OperatingGroup);
-    const state = getStateFullName(parsedBody.State);
+    const operatingGroup = parsedBody.OperatingGroup;
+    const state = parsedBody.StateCode;
     return {
       title: "Arbitration Agreements",
       tags: [`${operatingGroup} ${state} Arbitration`],
       signatureRequired: 2,
       variables: {
-        Contractdescription: parsedBody.EmployeeDisplayName
-          ? parsedBody.EmployeeDisplayName
-          : "null",
+        Contractdescription: `${parsedBody.FirstName} ${parsedBody.LastName} ${parsedBody.EmployeeXrefCode}`,
       },
-      inviteNowEmails: {
-        "Shilpasf2@gmail.com": "NO_EDIT",
-      },
+      inviteNowEmails: this.getInviteNowEmails(parsedBody),
       sendWithDocument: true,
       customMessageName: "Name of custom message",
-      customMessageTitle: "Arbitration Agreement",
+      customMessageTitle:
+        "Sevita - 1st of 2 New Hire documents - PLEASE REVIEW",
       customMessageContent:
         parsedBody.State === "CA"
           ? this.messageContentForCA()
@@ -31,23 +28,20 @@ export class TransformManager {
   }
 
   public getCaregiverRequestBody(parsedBody: any) {
-    const operatingGroup = getOperatingGroup(parsedBody.OperatingGroup);
-    const state = getStateFullName(parsedBody.State);
+    const operatingGroup = parsedBody.OperatingGroup;
+    const state = parsedBody.StateCode;
     return {
       title: "NDA for New Hires (Caregiver)",
       tags: [`${operatingGroup} ${state} Caregiver NDA`],
       signatureRequired: 2,
       variables: {
-        Contractdescription: parsedBody.EmployeeDisplayName
-          ? parsedBody.EmployeeDisplayName
-          : "null",
+        Contractdescription: `${parsedBody.FirstName} ${parsedBody.LastName} ${parsedBody.EmployeeXrefCode}`,
       },
-      inviteNowEmails: {
-        "Shilpasf2@gmail.com": "NO_EDIT",
-      },
+      inviteNowEmails: this.getInviteNowEmails(parsedBody),
       sendWithDocument: true,
       customMessageName: "Name of custom message",
-      customMessageTitle: "NDA",
+      customMessageTitle:
+        "Sevita - 2nd of 2 New Hire Documents - PLEASE REVIEW",
       customMessageContent:
         parsedBody.State === "CA"
           ? this.messageContentForCA()
@@ -56,23 +50,20 @@ export class TransformManager {
   }
 
   public getNonCaregiverRequestBody(parsedBody: any) {
-    const operatingGroup = getOperatingGroup(parsedBody.OperatingGroup);
-    const state = getStateFullName(parsedBody.State);
+    const operatingGroup = parsedBody.OperatingGroup;
+    const state = parsedBody.StateCode;
     return {
       title: "NDA for New Hires",
       tags: [`${operatingGroup} ${state} Non-Caregiver NDA`],
       signatureRequired: 2,
       variables: {
-        Contractdescription: parsedBody.EmployeeDisplayName
-          ? parsedBody.EmployeeDisplayName
-          : "null",
+        Contractdescription: `${parsedBody.FirstName} ${parsedBody.LastName} ${parsedBody.EmployeeXrefCode}`,
       },
-      inviteNowEmails: {
-        "Shilpasf2@gmail.com": "NO_EDIT",
-      },
+      inviteNowEmails: this.getInviteNowEmails(parsedBody),
       sendWithDocument: true,
       customMessageName: "Name of custom message",
-      customMessageTitle: "NDA",
+      customMessageTitle:
+        "Sevita - 2nd of 2 New Hire Documents - PLEASE REVIEW",
       customMessageContent:
         parsedBody.State === "CA"
           ? this.messageContentForCA()
@@ -83,7 +74,7 @@ export class TransformManager {
   public async postRequest(apiUrl: any, requestData: any, config: any) {
     try {
       const response = await axios.post(apiUrl, requestData, config);
-      log.info("Successfully sent POST request", response.data);
+      log.info("Successfully sent to target system", response.data);
       return response.data;
     } catch (error) {
       log.error("Failed to send POST request:", error);
@@ -97,5 +88,25 @@ export class TransformManager {
 
   public messageContentForNonCA() {
     return "Non-CA email content";
+  }
+
+  public getInviteNowEmails(messageBody: any) {
+    const { personalEmail, businessEmail } = getEmailByContactType(messageBody);
+    if (!personalEmail && !businessEmail) {
+      return {
+        "shilpa.ronda@gmail.com": "NO_EDIT",
+        "shilpa.nannuri@test.com": "NO_EDIT",
+      };
+    }
+    const personalEmailAddress = personalEmail
+      ? personalEmail.EmailAddress
+      : null;
+    const businessEmailAddress = businessEmail
+      ? businessEmail.EmailAddress
+      : null;
+    return {
+      [personalEmailAddress]: "NO_EDIT",
+      [businessEmailAddress]: "NO_EDIT",
+    };
   }
 }

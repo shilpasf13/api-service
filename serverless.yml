@@ -19,39 +19,65 @@ provider:
   stage: ${self:custom.env}
   region: ${self:custom.region}
   environment: ${file(./config/sls.environments.yml):${self:custom.env}}
-  stackName: ${self:service}${self:custom.postfix}
+  stackName: ${self:service}${self:custom.postfix}  
+  apiGateway:
+    apiId: 
+      dev: brdme1lxnb
+      # uat: brdme1lxnb
+      # prod: brdme1lxnb
   iamRoleStatements:
     - Effect: Allow
       Action:
         - sqs:SendMessage
-      Resource: "arn:aws:sqs:us-east-1:${self:custom.accountId}:EventQ"
+      Resource: "arn:aws:sqs:${self:custom.region}:${self:custom.accountId}:EventQ"
     - Effect: Allow
       Action:
         - sqs:ReceiveMessage
         - sqs:DeleteMessage
-      Resource: "arn:aws:sqs:us-east-1:${self:custom.accountId}:EventQ"
+      Resource: "arn:aws:sqs:${self:custom.region}:${self:custom.accountId}:EventQ"
     - Effect: Allow
       Action:
         - sqs:SendMessage
-      Resource: "arn:aws:sqs:us-east-1:${self:custom.accountId}:DLQ"
+      Resource: "arn:aws:sqs:${self:custom.region}:${self:custom.accountId}:DLQ"
     - Effect: Allow
       Action:
         - sqs:ReceiveMessage
         - sqs:DeleteMessage
-      Resource: "arn:aws:sqs:us-east-1:${self:custom.accountId}:DLQ"
+      Resource: "arn:aws:sqs:${self:custom.region}:${self:custom.accountId}:DLQ"
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:Scan
+        - dynamodb:Query
+      Resource: "arn:aws:dynamodb:${self:custom.region}:${self:custom.accountId}:table/QueueEventTable"
+    - Effect: Allow
+      Action:
+        - execute-api:Invoke
+      Resource:
+        - "arn:aws:execute-api:${self:custom.region}:${self:custom.accountId}:${self:provider.apiGateway.apiId.${self:custom.env}}/*"
 
 functions:
+  AuthorizerHandler:
+    handler: src/functions/AuthorizerHandler/index.handler
+    timeout: 900
+    environment:
+      AUTH_SECRET: my-secret-token
+
   QueueHandler:
     handler: src/functions/QueueHandler/index.handler
-    timeout: 60
+    timeout: 900
     events:
       - http:
           path: /subscribe
           method: post
+          authorizer:
+            name: AuthorizerHandler
+            type: REQUEST
 
   TransformHandler:
     handler: src/functions/TransformHandler/index.handler
-    timeout: 60
+    timeout: 900
     events:
       - sqs:
           arn:
@@ -62,7 +88,7 @@ functions:
 
   DLQHandler:
     handler: src/functions/DLQHandler/index.handler
-    timeout: 60
+    timeout: 900
     events:
       - sqs:
           arn:
@@ -78,6 +104,35 @@ package:
 
 resources:
   Resources:
+    AuthorizerRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: AuthorizerRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action:
+                - sts:AssumeRole
+
+    AuthorizerPolicy:
+      Type: AWS::IAM::Policy
+      Properties:
+        PolicyName: AuthorizerPolicy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - execute-api:Invoke
+              Resource:
+                - "arn:aws:execute-api:${self:custom.region}:${self:custom.accountId}:${self:provider.apiGateway.apiId.${self:custom.env}}/*/POST/subscribe"
+        Roles:
+          - Ref: AuthorizerRole
+
     EventQ:
       Type: AWS::SQS::Queue
       Properties:
@@ -97,3 +152,17 @@ resources:
         QueueName: DLQ
         VisibilityTimeout: 60
 
+
+    QueueEventTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: QueueEventTable
+        AttributeDefinitions:
+          - AttributeName: "id"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5

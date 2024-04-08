@@ -50,7 +50,9 @@ export const handler = async (event: any) => {
       } else if (parsedBody.Caregiver === "Non-Caregiver") {
         const nonCaregiverRequestBody =
           transformManager.getNonCaregiverRequestBody(parsedBody);
+
         log.info("Non-Caregiver request body", nonCaregiverRequestBody);
+        
         await transformManager.postRequest(
           NON_CAREGIVER_API_URL,
           nonCaregiverRequestBody,
