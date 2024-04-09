@@ -92,18 +92,32 @@ export class TransformManager {
 
   public getInviteNowEmails(messageBody: any) {
     const { personalEmail, businessEmail } = getEmailByContactType(messageBody);
-    if (!personalEmail && !businessEmail) {
-      return {
-        "shilpa.ronda@gmail.com": "NO_EDIT",
-        "shilpa.nannuri@test.com": "NO_EDIT",
-      };
-    }
     const personalEmailAddress = personalEmail
       ? personalEmail.EmailAddress
       : null;
     const businessEmailAddress = businessEmail
       ? businessEmail.EmailAddress
       : null;
+
+    if (!personalEmailAddress && !businessEmailAddress) {
+      return {
+        "shilpa.ronda@gmail.com": "NO_EDIT",
+        "shilpa.nannuri@test.com": "NO_EDIT",
+      };
+    }
+
+    if (personalEmailAddress && !businessEmailAddress) {
+      return {
+        [personalEmailAddress]: "NO_EDIT",
+      };
+    }
+
+    if (!personalEmailAddress && businessEmailAddress) {
+      return {
+        [businessEmailAddress]: "NO_EDIT",
+      };
+    }
+
     return {
       [personalEmailAddress]: "NO_EDIT",
       [businessEmailAddress]: "NO_EDIT",

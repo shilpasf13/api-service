@@ -1,6 +1,7 @@
 import { Config } from "../../utils/config";
 import { TransformManager } from "../../managers/transform-manager";
 import { log } from "../../utils/logger";
+import { SecretManager } from "../../managers/secret-manager";
 
 const globalConfig = new Config();
 
@@ -8,19 +9,27 @@ export const handler = async (event: any) => {
   log.info("incoming event", event);
 
   const transformManager = new TransformManager();
-  const {
-    ARBITRATION_API_URL,
-    CAREGIVER_API_URL,
-    NON_CAREGIVER_API_URL,
-    API_KEY,
-  } = globalConfig;
+  const { TARGET_SYSTEM_API_URL, API_SECRET } = globalConfig;
   const contentType = "application/json";
+
+  const secretManager = new SecretManager();
+
+  const apiSecret = await secretManager.getSecret(API_SECRET);
+
+  const ARBITRATION_API_URL =
+    TARGET_SYSTEM_API_URL + String(apiSecret.arbitrationApiUrl);
+
+  const CAREGIVER_API_URL =
+    TARGET_SYSTEM_API_URL + String(apiSecret.caregiverApiUrl);
+
+  const NON_CAREGIVER_API_URL =
+    TARGET_SYSTEM_API_URL + String(apiSecret.nonCaregiverApiUrl);
 
   const processEvent = async (parsedBody: any) => {
     try {
       const config = {
         headers: {
-          "x-api-key": API_KEY,
+          "x-api-key": apiSecret.apiKey,
           "Content-Type": contentType,
         },
       };
@@ -36,7 +45,7 @@ export const handler = async (event: any) => {
         config
       );
 
-      if (parsedBody.Caregiver === "Caregiver") {
+      if (parsedBody.EmploymentType === "Caregiver") {
         const caregiverRequestBody =
           transformManager.getCaregiverRequestBody(parsedBody);
 
@@ -47,12 +56,12 @@ export const handler = async (event: any) => {
           caregiverRequestBody,
           config
         );
-      } else if (parsedBody.Caregiver === "Non-Caregiver") {
+      } else if (parsedBody.EmploymentType === "Non-Caregiver") {
         const nonCaregiverRequestBody =
           transformManager.getNonCaregiverRequestBody(parsedBody);
 
         log.info("Non-Caregiver request body", nonCaregiverRequestBody);
-        
+
         await transformManager.postRequest(
           NON_CAREGIVER_API_URL,
           nonCaregiverRequestBody,

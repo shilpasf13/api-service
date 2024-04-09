@@ -56,6 +56,10 @@ provider:
         - execute-api:Invoke
       Resource:
         - "arn:aws:execute-api:${self:custom.region}:${self:custom.accountId}:${self:provider.apiGateway.apiId.${self:custom.env}}/*"
+    - Effect: Allow
+      Action:
+        - secretsmanager:GetSecretValue
+      Resource: "arn:aws:secretsmanager:${self:custom.region}:${self:custom.accountId}:secret:/${self:custom.env}/apisecret*"
 
 functions:
   AuthorizerHandler:
