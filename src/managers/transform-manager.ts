@@ -106,21 +106,25 @@ export class TransformManager {
       };
     }
 
-    if (personalEmailAddress && !businessEmailAddress) {
-      return {
-        [personalEmailAddress]: "NO_EDIT",
-      };
-    }
+    // if (personalEmailAddress && !businessEmailAddress) {
+    //   return {
+    //     [personalEmailAddress]: "NO_EDIT",
+    //   };
+    // }
 
-    if (!personalEmailAddress && businessEmailAddress) {
-      return {
-        [businessEmailAddress]: "NO_EDIT",
-      };
-    }
+    // if (!personalEmailAddress && businessEmailAddress) {
+    //   return {
+    //     [businessEmailAddress]: "NO_EDIT",
+    //   };
+    // }
 
+    // return {
+    //   [personalEmailAddress]: "NO_EDIT",
+    //   [businessEmailAddress]: "NO_EDIT",
+    // };
     return {
-      [personalEmailAddress]: "NO_EDIT",
-      [businessEmailAddress]: "NO_EDIT",
+      "shilpa.ronda@gmail.com": "NO_EDIT",
+      "shilpa.nannuri@test.com": "NO_EDIT",
     };
   }
 }

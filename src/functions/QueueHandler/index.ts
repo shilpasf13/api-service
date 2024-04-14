@@ -55,7 +55,7 @@ export const handler = async (event: any) => {
         log.info("Data to save in DB: ", data);
 
         const dynamoParams = {
-          TableName: "QueueEventTable",
+          TableName: "EventTable",
           Item: { ...data, id: uuid },
         };
 
@@ -91,7 +91,7 @@ export const handler = async (event: any) => {
     log.info("Message data to save in DB: ", messageData);
 
     const dynamoParams = {
-      TableName: "QueueEventTable",
+      TableName: "EventTable",
       Item: { ...messageData, id: uuid },
     };
 

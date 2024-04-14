@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  data-transformer-service
+Parameters:
+  NodeEnvironment:
+    Type: String
+    Description: The NodeJS environment
+    Default: development
+    AllowedValues:
+      - development
+      - staging
+      - production
+  QueueUrl:
+    Type: String
+    Description: The Event Queue URL
+    Default: "https://sqs.us-east-1.amazonaws.com/637423183217/EventQueue"
+  DLQUrl:
+    Type: String
+    Description: The Dead Letter Queue URL
+    Default: "https://sqs.us-east-1.amazonaws.com/637423183217/DeadLetterQueue"
+  TargetSystemApiUrl:
+    Type: String
+    Description: Target System API URL
+    Default: "https://uat.concordnow.com/api/rest/1/organizations/1272/auto/"
+  ApiSecret:
+    Type: String
+    Description: API Secret stored in Secret Manager
+    Default: /dev/apisecret
+Globals:
+  Function:
+    Runtime: nodejs16.x
+    Timeout: 900
+    Environment:
+      Variables:
+        NODE_ENV: !Ref NodeEnvironment
+        QUEUE_URL: !Ref QueueUrl
+        DLQ_URL: !Ref DLQUrl
+        TARGET_SYSTEM_API_URL: !Ref TargetSystemApiUrl
+        API_SECRET: !Ref ApiSecret
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "SendMessageToEventQueue"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "sqs:SendMessage"
+                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:EventQueue"
+        - PolicyName: "SendMessageToDeadLetterQueue"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "sqs:SendMessage"
+                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:DeadLetterQueue"
+        - PolicyName: "AccessDynamoDBTable"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "dynamodb:PutItem"
+                  - "dynamodb:GetItem"
+                  - "dynamodb:Scan"
+                  - "dynamodb:Query"
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/EventTable"
+        - PolicyName: "SecretsManagerPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "secretsmanager:GetSecretValue"
+                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${ApiSecret}*"
+        - PolicyName: "ReceiveMessagesFromQueue"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "sqs:ReceiveMessage"
+                Resource:
+                  - !GetAtt EventQueue.Arn
+                  - !GetAtt DeadLetterQueue.Arn
+        - PolicyName: "DeleteMessagesFromQueue"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "sqs:DeleteMessage"
+                Resource:
+                  - !GetAtt EventQueue.Arn
+                  - !GetAtt DeadLetterQueue.Arn
+        - PolicyName: "GetQueueAttributesFromQueue"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "sqs:GetQueueAttributes"
+                Resource:
+                  - !GetAtt EventQueue.Arn
+                  - !GetAtt DeadLetterQueue.Arn
+        - PolicyName: "CloudWatchLogsPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:*"
+
+  AuthHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: src/functions/AuthorizerHandler
+      Environment:
+        Variables:
+          AUTH_SECRET: my-secret-token
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900
+  EventForwarderHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: src/functions/QueueHandler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900
+      Events:
+        SubscribeEvent:
+          Type: Api
+          Properties:
+            Path: /subscribe
+            Method: post
+            RestApiId: !Ref SubscriberApi
+            Auth:
+              Authorizer: AuthHandler
+  EventTransformHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: src/functions/TransformHandler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt EventQueue.Arn
+  DeadLetterQueueHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: src/functions/DLQHandler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900
+      Events:
+        DLQEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt DeadLetterQueue.Arn
+  EventQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: EventQueue
+      VisibilityTimeout: 900
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 3
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: DeadLetterQueue
+      VisibilityTimeout: 900
+  EventTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: EventTable
+      AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  SubscriberApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref NodeEnvironment
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: "API Gateway"
+          version: "1.0.0"
+        paths:
+          /subscribe:
+            post:
+              responses: {}
+              x-amazon-apigateway-integration:
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EventForwarderHandler.Arn}/invocations"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                type: "aws_proxy"

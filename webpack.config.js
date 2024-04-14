@@ -1,42 +1,49 @@
-const serverlessWebpack = require('serverless-webpack');
-const webpack = require('webpack');
-const nodeExternals = require('webpack-node-externals');
-const TerserPlugin = require('terser-webpack-plugin');
-const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const path = require("path");
+const AwsSamPlugin = require("aws-sam-webpack-plugin");
+const nodeExternals = require("webpack-node-externals");
+
+const awsSamPlugin = new AwsSamPlugin();
 
 module.exports = {
-  devtool: 'inline-cheap-module-source-map',
-  entry: serverlessWebpack.lib.entries,
-  mode: 'production',
+  entry: () => awsSamPlugin.entry(),
+
+  output: {
+    filename: (chunkData) => awsSamPlugin.filename(chunkData),
+    libraryTarget: "commonjs2",
+    path: path.resolve("."),
+  },
+
+  // Create source maps
+  devtool: "source-map",
+
+  // Resolve .ts and .js extensions
+  resolve: {
+    extensions: [".ts", ".js", ".mjs"],
+  },
+
+  // Target node
+  target: "node",
+
+  // externals: process.env.NODE_ENV === "development" ? [] : ["aws-sdk"],
+  // externals: [nodeExternals()],
+  // Set the webpack mode
+  mode: process.env.NODE_ENV || "production",
+
+  // Add the TypeScript loader
   module: {
-    rules: [{
+    rules: [
+      {
         test: /\.ts$/,
         exclude: /node_modules/,
-        loader: 'ts-loader',
+        loader: "ts-loader",
         options: {
           // disable type checker - we will use it in fork plugin
-          transpileOnly: true
-        }
-      }
+          transpileOnly: true,
+        },
+      },
     ],
   },
-  node: false,
-  externals: ['aws-sdk'],
-  optimization: {
-    minimize: true,
-    minimizer: [new TerserPlugin({
-      terserOptions: {
-        keep_classnames: true,
-        keep_fnames: true,
-      }
-    }
-    )],
-  },
-  resolve: {
-    extensions: ['.mjs', '.ts', '.js']
-  },
-  plugins: [
-    new ForkTsCheckerWebpackPlugin()
-  ],
-  target: 'node',
+
+  // Add the AWS SAM Webpack plugin
+  plugins: [awsSamPlugin],
 };
