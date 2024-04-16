@@ -1,8 +1,8 @@
- import { log } from "../../utils/logger";
- export const handler = async (event: any) => {
-  const token = event.headers["Authorization"];
-
+import { log } from "../../utils/logger";
+export const handler = async (event: any) => {
   log.info("event", event);
+
+  const token = event.authorizationToken;
 
   if (!token || token !== "my-secret-token") {
     return {

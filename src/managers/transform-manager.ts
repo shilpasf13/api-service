@@ -1,9 +1,11 @@
 import axios from "axios";
 import { log } from "../utils/logger";
-import { getEmailByContactType } from "../utils/helpers";
+import { getEmailByContactType, getFormattedDate } from "../utils/helpers";
 
 export class TransformManager {
-  constructor() {}
+  constructor(private dynamoDB: AWS.DynamoDB.DocumentClient) {
+    this.dynamoDB = dynamoDB;
+  }
 
   public getArbitrationRequestBody(parsedBody: any) {
     const operatingGroup = parsedBody.OperatingGroup;
@@ -21,7 +23,7 @@ export class TransformManager {
       customMessageTitle:
         "Sevita - 1st of 2 New Hire documents - PLEASE REVIEW",
       customMessageContent:
-        parsedBody.State === "CA"
+        parsedBody.StateCode === "CA"
           ? this.messageContentForCA()
           : this.messageContentForNonCA(),
     };
@@ -43,7 +45,7 @@ export class TransformManager {
       customMessageTitle:
         "Sevita - 2nd of 2 New Hire Documents - PLEASE REVIEW",
       customMessageContent:
-        parsedBody.State === "CA"
+        parsedBody.StateCode === "CA"
           ? this.messageContentForCA()
           : this.messageContentForNonCA(),
     };
@@ -65,20 +67,90 @@ export class TransformManager {
       customMessageTitle:
         "Sevita - 2nd of 2 New Hire Documents - PLEASE REVIEW",
       customMessageContent:
-        parsedBody.State === "CA"
+        parsedBody.StateCode === "CA"
           ? this.messageContentForCA()
           : this.messageContentForNonCA(),
     };
   }
 
-  public async postRequest(apiUrl: any, requestData: any, config: any) {
+  public async postRequest(
+    apiUrl: any,
+    requestData: any,
+    config: any,
+    parsedBody: any
+  ) {
     try {
       const response = await axios.post(apiUrl, requestData, config);
       log.info("Successfully sent to target system", response.data);
+      const responseData = response.data;
+      // Check if the record already exists in DynamoDB
+      const existingRecord = await this.getRecordFromDynamoDB(
+        parsedBody.EmployeeXrefCode,
+        parsedBody.createdAt
+      );
+
+      if (existingRecord) {
+        // Update the record with uid and title if they don't exist
+        if (!existingRecord.uid) {
+          existingRecord.uid = responseData.uid;
+        }
+        if (!existingRecord.title) {
+          existingRecord.title = responseData.title;
+        }
+        if (!existingRecord.modifiedAt) {
+          existingRecord.modifiedAt = getFormattedDate();
+        }
+        // Update the record in DynamoDB
+        await this.updateRecordInDynamoDB(existingRecord, parsedBody.createdAt);
+      }
       return response.data;
     } catch (error) {
       log.error("Failed to send POST request:", error);
       throw new Error("Failed to send POST request");
+    }
+  }
+
+  public async getRecordFromDynamoDB(id: string, createdAt: string) {
+    const params = {
+      TableName: "DayforceConcordEventTable",
+      Key: {
+        id: id,
+        createdAt: createdAt,
+      },
+    };
+
+    try {
+      const data = await this.dynamoDB.get(params).promise();
+      return data.Item;
+    } catch (error) {
+      console.error("Error getting item from DynamoDB:", error);
+      return null;
+    }
+  }
+
+  public async updateRecordInDynamoDB(
+    record: any,
+    createdAt: string
+  ): Promise<void> {
+    const params = {
+      TableName: "DayforceConcordEventTable",
+      Key: {
+        id: record.id,
+        createdAt: createdAt,
+      },
+      UpdateExpression:
+        "SET uid = :uid, title = :title, modifiedAt = :modifiedAt",
+      ExpressionAttributeValues: {
+        ":uid": record.uid,
+        ":title": record.title,
+        ":modifiedAt": record.modifiedAt,
+      },
+    };
+
+    try {
+      await this.dynamoDB.update(params).promise();
+    } catch (error) {
+      console.error("Error updating item in DynamoDB:", error);
     }
   }
 

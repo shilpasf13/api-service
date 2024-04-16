@@ -2,13 +2,16 @@ import { Config } from "../../utils/config";
 import { TransformManager } from "../../managers/transform-manager";
 import { log } from "../../utils/logger";
 import { SecretManager } from "../../managers/secret-manager";
+import AWS from 'aws-sdk';
 
 const globalConfig = new Config();
 
 export const handler = async (event: any) => {
   log.info("incoming event", event);
 
-  const transformManager = new TransformManager();
+  const dynamoDB = new AWS.DynamoDB.DocumentClient();
+
+  const transformManager = new TransformManager(dynamoDB);
   const { TARGET_SYSTEM_API_URL, API_SECRET } = globalConfig;
   const contentType = "application/json";
 
@@ -42,7 +45,8 @@ export const handler = async (event: any) => {
       await transformManager.postRequest(
         ARBITRATION_API_URL,
         arbitrationRequestBody,
-        config
+        config,
+        parsedBody
       );
 
       if (parsedBody.EmploymentType === "Caregiver") {
@@ -54,7 +58,8 @@ export const handler = async (event: any) => {
         await transformManager.postRequest(
           CAREGIVER_API_URL,
           caregiverRequestBody,
-          config
+          config,
+          parsedBody
         );
       } else if (parsedBody.EmploymentType === "Non-Caregiver") {
         const nonCaregiverRequestBody =
@@ -65,7 +70,8 @@ export const handler = async (event: any) => {
         await transformManager.postRequest(
           NON_CAREGIVER_API_URL,
           nonCaregiverRequestBody,
-          config
+          config,
+          parsedBody
         );
       }
     } catch (error) {

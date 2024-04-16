@@ -1,8 +1,8 @@
 version = 0.1
 [default.global.parameters]
-stack_name = "data-transformer-service-dev"
-s3_bucket = "data-transformer-service-integration"
-s3_prefix = "data-transformer-service-dev"
+stack_name = "dayforce-concord-integration-dev"
+s3_bucket = "dayforce-concord-integration"
+s3_prefix = "dayforce-concord-integration-dev"
 region = "us-east-1"
 environment = "development"
 
@@ -12,21 +12,21 @@ resolve_s3 = true
 profile = "iamadmin"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "NodeEnvironment=\"development\" QueueUrl=\"https://sqs.us-east-1.amazonaws.com/637423183217/EventQueue\" DLQUrl=\"https://sqs.us-east-1.amazonaws.com/637423183217/DeadLetterQueue\" TargetSystemApiUrl=\"https://uat.concordnow.com/api/rest/1/organizations/1272/auto/\" ApiSecret=\"/dev/apisecret\""
+parameter_overrides = "NodeEnvironment=\"development\" QueueUrl=\"https://sqs.us-east-1.amazonaws.com/637423183217/DayforceConcordEventQueue\" DLQUrl=\"https://sqs.us-east-1.amazonaws.com/637423183217/DayforceConcordDeadLetterQueue\" TargetSystemApiUrl=\"https://uat.concordnow.com/api/rest/1/organizations/1272/auto/\" ApiSecret=\"/dev/apisecret\""
 image_repositories = []
 [staging.global.parameters]
-stack_name = "data-transformer-service-staging"
-s3_bucket = "data-transformer-service-integration-staging"
-s3_prefix = "data-transformer-service-staging"
+stack_name = "dayforce-concord-integration-staging"
+s3_bucket = "dayforce-concord-integration-staging"
+s3_prefix = "dayforce-concord-integration-staging"
 region = "us-east-1"
 parameter_overrides=[
   "NodeEnvironment=staging",
 ]
 
 [production.global.parameters]
-stack_name = "data-transformer-service-prod"
-s3_bucket = "data-transformer-service-integration-production"
-s3_prefix = "data-transformer-service-production"
+stack_name = "dayforce-concord-integration-prod"
+s3_bucket = "dayforce-concord-integration-production"
+s3_prefix = "dayforce-concord-integration-production"
 region = "us-east-1"
 environment = "production"
 parameter_overrides=[

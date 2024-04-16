@@ -2,7 +2,7 @@ import { DynamoDB, SQS } from "aws-sdk";
 import { Config } from "../../utils/config";
 import { log } from "../../utils/logger";
 import { v4 as uuidv4 } from "uuid";
-import { getEmailByContactType } from "../../utils/helpers";
+import { getEmailByContactType, getFormattedDate } from "../../utils/helpers";
 
 const dynamoDB = new DynamoDB.DocumentClient();
 const config = new Config();
@@ -10,8 +10,8 @@ const config = new Config();
 export const handler = async (event: any) => {
   log.info("incoming event", event);
 
-  const messages = JSON.parse(event.body); 
- 
+  const messages = JSON.parse(event.body);
+
   try {
     if (!messages || Object.keys(messages).length === 0) {
       return { statusCode: 400, body: "No data found from source system" };
@@ -25,13 +25,13 @@ export const handler = async (event: any) => {
       const batch = messages.Employees.slice(i, i + batchSize);
       const batchEntries = batch.map((msg: any, index: any) => ({
         Id: `${i + index}`,
-        MessageBody: JSON.stringify(msg),
+        MessageBody: JSON.stringify({ ...msg, createdAt: getFormattedDate() }),
       }));
 
       log.info("Messages in batch:", batchEntries);
 
       const putPromises = batch.map(async (message: any) => {
-        const uuid = uuidv4();
+        // const uuid = uuidv4();
 
         const data = {
           FirstName: message.FirstName,
@@ -50,13 +50,14 @@ export const handler = async (event: any) => {
             ? getEmailByContactType(message).businessEmail.EmailAddress
             : null,
           Status: "Success",
+          createdAt: getFormattedDate(),
         };
 
         log.info("Data to save in DB: ", data);
 
         const dynamoParams = {
-          TableName: "EventTable",
-          Item: { ...data, id: uuid },
+          TableName: "DayforceConcordEventTable",
+          Item: { ...data, id: message.EmployeeXrefCode },
         };
 
         await dynamoDB.put(dynamoParams).promise();
@@ -87,12 +88,12 @@ export const handler = async (event: any) => {
       Status: "Failed",
     };
 
-    const uuid = uuidv4();
+    // const uuid = uuidv4();
     log.info("Message data to save in DB: ", messageData);
 
     const dynamoParams = {
-      TableName: "EventTable",
-      Item: { ...messageData, id: uuid },
+      TableName: "DayforceConcordEventTable",
+      Item: { ...messageData, id: messages.data.EmployeeXRefCode },
     };
 
     await dynamoDB.put(dynamoParams).promise();

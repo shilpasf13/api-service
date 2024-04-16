@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  data-transformer-service
+   dayforce-concord-integration
 Parameters:
   NodeEnvironment:
     Type: String
@@ -14,11 +14,11 @@ Parameters:
   QueueUrl:
     Type: String
     Description: The Event Queue URL
-    Default: "https://sqs.us-east-1.amazonaws.com/637423183217/EventQueue"
+    Default: "https://sqs.us-east-1.amazonaws.com/637423183217/DayforceConcordEventQueue"
   DLQUrl:
     Type: String
     Description: The Dead Letter Queue URL
-    Default: "https://sqs.us-east-1.amazonaws.com/637423183217/DeadLetterQueue"
+    Default: "https://sqs.us-east-1.amazonaws.com/637423183217/DayforceConcordDeadLetterQueue"
   TargetSystemApiUrl:
     Type: String
     Description: Target System API URL
@@ -50,20 +50,20 @@ Resources:
               Service: "lambda.amazonaws.com"
             Action: "sts:AssumeRole"
       Policies:
-        - PolicyName: "SendMessageToEventQueue"
+        - PolicyName: "SendMessageToDayforceConcordEventQueue"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: "Allow"
                 Action: "sqs:SendMessage"
-                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:EventQueue"
-        - PolicyName: "SendMessageToDeadLetterQueue"
+                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:DayforceConcordEventQueue"
+        - PolicyName: "SendMessageToDayforceConcordDeadLetterQueue"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: "Allow"
                 Action: "sqs:SendMessage"
-                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:DeadLetterQueue"
+                Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:DayforceConcordDeadLetterQueue"
         - PolicyName: "AccessDynamoDBTable"
           PolicyDocument:
             Version: "2012-10-17"
@@ -74,7 +74,8 @@ Resources:
                   - "dynamodb:GetItem"
                   - "dynamodb:Scan"
                   - "dynamodb:Query"
-                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/EventTable"
+                  - "dynamodb:UpdateItem"
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/DayforceConcordEventTable"
         - PolicyName: "SecretsManagerPolicy"
           PolicyDocument:
             Version: "2012-10-17"
@@ -89,8 +90,8 @@ Resources:
               - Effect: "Allow"
                 Action: "sqs:ReceiveMessage"
                 Resource:
-                  - !GetAtt EventQueue.Arn
-                  - !GetAtt DeadLetterQueue.Arn
+                  - !GetAtt DayforceConcordEventQueue.Arn
+                  - !GetAtt DayforceConcordDeadLetterQueue.Arn
         - PolicyName: "DeleteMessagesFromQueue"
           PolicyDocument:
             Version: "2012-10-17"
@@ -98,8 +99,8 @@ Resources:
               - Effect: "Allow"
                 Action: "sqs:DeleteMessage"
                 Resource:
-                  - !GetAtt EventQueue.Arn
-                  - !GetAtt DeadLetterQueue.Arn
+                  - !GetAtt DayforceConcordEventQueue.Arn
+                  - !GetAtt DayforceConcordDeadLetterQueue.Arn
         - PolicyName: "GetQueueAttributesFromQueue"
           PolicyDocument:
             Version: "2012-10-17"
@@ -107,8 +108,8 @@ Resources:
               - Effect: "Allow"
                 Action: "sqs:GetQueueAttributes"
                 Resource:
-                  - !GetAtt EventQueue.Arn
-                  - !GetAtt DeadLetterQueue.Arn
+                  - !GetAtt DayforceConcordEventQueue.Arn
+                  - !GetAtt DayforceConcordDeadLetterQueue.Arn
         - PolicyName: "CloudWatchLogsPolicy"
           PolicyDocument:
             Version: "2012-10-17"
@@ -118,23 +119,29 @@ Resources:
                   - "logs:CreateLogGroup"
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
-                Resource: "arn:aws:logs:*:*:*"
+                Resource: 
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/QueueHandler*"
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/TransformHandler*"
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/DLQHandler*"
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/AuthHandler*"
 
   AuthHandler:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
       CodeUri: src/functions/AuthorizerHandler
+      FunctionName: AuthHandler
       Environment:
         Variables:
           AUTH_SECRET: my-secret-token
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 900
-  EventForwarderHandler:
+  QueueHandler:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
       CodeUri: src/functions/QueueHandler
+      FunctionName: QueueHandler
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 900
       Events:
@@ -143,75 +150,85 @@ Resources:
           Properties:
             Path: /subscribe
             Method: post
-            RestApiId: !Ref SubscriberApi
-            Auth:
-              Authorizer: AuthHandler
-  EventTransformHandler:
+            RestApiId: !Ref DayforceSourceApi
+
+  TransformHandler:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
       CodeUri: src/functions/TransformHandler
+      FunctionName: TransformHandler
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 900
       Events:
         SQSEvent:
           Type: SQS
           Properties:
-            Queue: !GetAtt EventQueue.Arn
-  DeadLetterQueueHandler:
+            Queue: !GetAtt DayforceConcordEventQueue.Arn
+  DLQHandler:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
       CodeUri: src/functions/DLQHandler
+      FunctionName: DLQHandler
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 900
       Events:
         DLQEvent:
           Type: SQS
           Properties:
-            Queue: !GetAtt DeadLetterQueue.Arn
-  EventQueue:
+            Queue: !GetAtt DayforceConcordDeadLetterQueue.Arn
+  DayforceConcordEventQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: EventQueue
+      QueueName: DayforceConcordEventQueue
       VisibilityTimeout: 900
       RedrivePolicy:
-        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        deadLetterTargetArn: !GetAtt DayforceConcordDeadLetterQueue.Arn
         maxReceiveCount: 3
-  DeadLetterQueue:
+  DayforceConcordDeadLetterQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: DeadLetterQueue
+      QueueName: DayforceConcordDeadLetterQueue
       VisibilityTimeout: 900
-  EventTable:
+  DayforceConcordEventTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: EventTable
+      TableName: DayforceConcordEventTable
       AttributeDefinitions:
         - AttributeName: "id"
+          AttributeType: "S"
+        - AttributeName: "createdAt"
           AttributeType: "S"
       KeySchema:
         - AttributeName: "id"
           KeyType: "HASH"
+        - AttributeName: "createdAt"
+          KeyType: "RANGE"
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
 
-  SubscriberApi:
+  DayforceSourceApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Ref NodeEnvironment
+      Auth:
+        DefaultAuthorizer: LambdaAuthorizer
+        Authorizers:
+          LambdaAuthorizer:
+            FunctionArn: !GetAtt AuthHandler.Arn
       DefinitionBody:
         swagger: "2.0"
         info:
-          title: "API Gateway"
+          title: "dayforce-source-api"
           version: "1.0.0"
         paths:
           /subscribe:
             post:
               responses: {}
               x-amazon-apigateway-integration:
-                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EventForwarderHandler.Arn}/invocations"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${QueueHandler.Arn}/invocations"
                 passthroughBehavior: "when_no_match"
                 httpMethod: "POST"
                 type: "aws_proxy"
