@@ -4,7 +4,7 @@ export const handler = async (event: any) => {
 
   const token = event.authorizationToken;
 
-  if (!token || token !== "my-secret-token") {
+  if (!token || token !== "Bearer my-secret-token") {
     return {
       statusCode: 401,
       body: JSON.stringify({

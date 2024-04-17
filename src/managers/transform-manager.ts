@@ -91,11 +91,41 @@ export class TransformManager {
 
       if (existingRecord) {
         // Update the record with uid and title if they don't exist
-        if (!existingRecord.uid) {
-          existingRecord.uid = responseData.uid;
+        if (!existingRecord.ArbitrationUid) {
+          existingRecord.ArbitrationUid =
+            responseData.title === "Arbitration Agreements"
+              ? responseData.uid
+              : null;
         }
-        if (!existingRecord.title) {
-          existingRecord.title = responseData.title;
+        if (!existingRecord.CaregiverUid) {
+          existingRecord.CaregiverUid =
+            responseData.title === "NDA for New Hires (Caregiver)"
+              ? responseData.uid
+              : null;
+        }
+        if (!existingRecord.NonCaregiverUid) {
+          existingRecord.NonCaregiverUid =
+            responseData.title === "NDA for New Hires"
+              ? responseData.uid
+              : null;
+        }
+        if (!existingRecord.ArbitrationTitle) {
+          existingRecord.ArbitrationTitle =
+            responseData.title === "Arbitration Agreements"
+              ? responseData.title
+              : null;
+        }
+        if (!existingRecord.CaregiverTitle) {
+          existingRecord.CaregiverTitle =
+            responseData.title === "NDA for New Hires (Caregiver)"
+              ? responseData.title
+              : null;
+        }
+        if (!existingRecord.NonCaregiverTitle) {
+          existingRecord.NonCaregiverTitle =
+            responseData.title === "NDA for New Hires"
+              ? responseData.title
+              : null;
         }
         if (!existingRecord.modifiedAt) {
           existingRecord.modifiedAt = getFormattedDate();
@@ -139,10 +169,14 @@ export class TransformManager {
         createdAt: createdAt,
       },
       UpdateExpression:
-        "SET uid = :uid, title = :title, modifiedAt = :modifiedAt",
+        "SET ArbitrationUid = :ArbitrationUid, CaregiverUid = :CaregiverUid, NonCaregiverUid = :NonCaregiverUid, ArbitrationTitle = :ArbitrationTitle, CaregiverTitle = :CaregiverTitle, NonCaregiverTitle = :NonCaregiverTitle, modifiedAt = :modifiedAt",
       ExpressionAttributeValues: {
-        ":uid": record.uid,
-        ":title": record.title,
+        ":ArbitrationUid": record.ArbitrationUid,
+        ":CaregiverUid": record.CaregiverUid,
+        ":NonCaregiverUid": record.NonCaregiverUid,
+        ":ArbitrationTitle": record.ArbitrationTitle,
+        ":CaregiverTitle": record.CaregiverTitle,
+        ":NonCaregiverTitle": record.NonCaregiverTitle,
         ":modifiedAt": record.modifiedAt,
       },
     };
