@@ -1,7 +1,6 @@
 import { DynamoDB, SQS } from "aws-sdk";
 import { Config } from "../../utils/config";
 import { log } from "../../utils/logger";
-import { v4 as uuidv4 } from "uuid";
 import { getEmailByContactType, getFormattedDate } from "../../utils/helpers";
 
 const dynamoDB = new DynamoDB.DocumentClient();
@@ -28,11 +27,35 @@ export const handler = async (event: any) => {
         MessageBody: JSON.stringify({ ...msg, createdAt: getFormattedDate() }),
       }));
 
-      log.info("Messages in batch:", batchEntries);
+      const existingEntries = await getExistingEntries(batch);
 
-      const putPromises = batch.map(async (message: any) => {
-        // const uuid = uuidv4();
+      log.info("existing entries", existingEntries);
 
+      const filteredBatchEntries = batchEntries.filter((entry: any) => {
+        const messageBody = JSON.parse(entry.MessageBody);
+        const matchingExistingEntries = existingEntries.filter(
+          (existingEntry) =>
+            existingEntry.id === messageBody.EmployeeXrefCode &&
+            existingEntry.StateCode === messageBody.StateCode
+        );
+
+        if (matchingExistingEntries.length > 0) {
+          log.info(
+            `Existing data already exists in DynamoDB table with EmployeeXrefCode ${matchingExistingEntries[0].id} and StateCode ${matchingExistingEntries[0].StateCode}`
+          );
+          return false;
+        }
+
+        return true;
+      });
+
+      log.info("filtered entries", filteredBatchEntries);
+
+      const filteredBatch = filteredBatchEntries.map((entry: any) =>
+        JSON.parse(entry.MessageBody)
+      );
+
+      const putPromises = filteredBatch.map(async (message: any) => {
         const data = {
           FirstName: message.FirstName,
           LastName: message.LastName,
@@ -67,11 +90,19 @@ export const handler = async (event: any) => {
         await Promise.all(putPromises);
 
         const params = {
-          Entries: batchEntries,
+          Entries: filteredBatchEntries,
           QueueUrl: config.QUEUE_URL,
         };
 
-        await sqs.sendMessageBatch(params).promise();
+        if (filteredBatchEntries.length > 0) {
+          await sqs.sendMessageBatch(params).promise();
+        } else {
+          log.error("No messages available to send to queue");
+          return {
+            statusCode: 500,
+            body: "No messages available to send to queue",
+          };
+        }
       } catch (error) {
         log.error("Error sending messages to queue", error);
         return { statusCode: 500, body: "Error sending messages to queue" };
@@ -83,6 +114,7 @@ export const handler = async (event: any) => {
     };
   } catch (error) {
     log.info("incoming event message", messages);
+
     const messageData = {
       EmployeeNumber: messages.data.EmployeeXRefCode,
       Status: "Failed",
@@ -103,4 +135,29 @@ export const handler = async (event: any) => {
       body: "Message saved to DynamoDB for failed event",
     };
   }
+};
+
+const getExistingEntries = async (batch: any[]) => {
+  const existingEntries: any[] = [];
+
+
+  const existingEntriesPromises = batch.map(async (message: any) => {
+    const existingEntry = await dynamoDB
+      .query({
+        TableName: "DayforceConcordEventTable",
+        KeyConditionExpression: "id = :id_value",
+        ExpressionAttributeValues: {
+          ":id_value": message.EmployeeXrefCode,
+        },
+      })
+      .promise();
+
+    if (existingEntry.Items && existingEntry.Items.length > 0) {
+      existingEntries.push(existingEntry.Items[0]);
+    }
+  });
+
+  await Promise.all(existingEntriesPromises);
+
+  return existingEntries;
 };

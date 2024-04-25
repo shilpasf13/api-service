@@ -1,10 +1,21 @@
 import { log } from "../../utils/logger";
+import { SecretManager } from "../../managers/secret-manager";
+import { Config } from "../../utils/config";
+
+const globalConfig = new Config();
 export const handler = async (event: any) => {
   log.info("event", event);
 
   const token = event.authorizationToken;
 
-  if (!token || token !== "Bearer my-secret-token") {
+  const { API_SECRET } = globalConfig;
+
+  const secretManager = new SecretManager();
+
+  const apiSecret = await secretManager.getSecret(API_SECRET);
+
+  if (!token || token !== String(apiSecret.authorizationToken)) {
+    log.info("Invalid Token");
     return {
       statusCode: 401,
       body: JSON.stringify({
@@ -12,6 +23,8 @@ export const handler = async (event: any) => {
       }),
     };
   }
+
+  log.info("Authorization successful");
 
   return {
     principalId: "user",

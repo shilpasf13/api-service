@@ -131,9 +131,6 @@ Resources:
       Handler: index.handler
       CodeUri: src/functions/AuthorizerHandler
       FunctionName: AuthHandler
-      Environment:
-        Variables:
-          AUTH_SECRET: my-secret-token
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 900
   QueueHandler:
