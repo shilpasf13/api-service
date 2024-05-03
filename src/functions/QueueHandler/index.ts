@@ -27,16 +27,34 @@ export const handler = async (event: any) => {
         MessageBody: JSON.stringify({ ...msg, createdAt: getFormattedDate() }),
       }));
 
-      const existingEntries = await getExistingEntries(batch);
+      const existingEntries: any[] = [];
 
-      log.info("existing entries", existingEntries);
+      const existingEntriesPromises = batch.map(async (message: any) => {
+        const existingEntry = await dynamoDB
+          .query({
+            TableName: "DayforceConcordEventTable",
+            KeyConditionExpression: "id = :id_value",
+            ExpressionAttributeValues: {
+              ":id_value": message.EmployeeXrefCode,
+            },
+          })
+          .promise();
+
+        if (existingEntry.Items && existingEntry.Items.length > 0) {
+          existingEntries.push(existingEntry.Items[0]);
+        }
+      });
+
+      // Wait for all existingEntriesPromises to complete before filtering
+      await Promise.all(existingEntriesPromises);
 
       const filteredBatchEntries = batchEntries.filter((entry: any) => {
         const messageBody = JSON.parse(entry.MessageBody);
         const matchingExistingEntries = existingEntries.filter(
           (existingEntry) =>
             existingEntry.id === messageBody.EmployeeXrefCode &&
-            existingEntry.StateCode === messageBody.StateCode
+            existingEntry.StateCode === messageBody.StateCode &&
+            existingEntry.ArbitrationUid === ""
         );
 
         if (matchingExistingEntries.length > 0) {
@@ -99,7 +117,7 @@ export const handler = async (event: any) => {
         } else {
           log.error("No messages available to send to queue");
           return {
-            statusCode: 500,
+            statusCode: 200,
             body: "No messages available to send to queue",
           };
         }
@@ -116,16 +134,15 @@ export const handler = async (event: any) => {
     log.info("incoming event message", messages);
 
     const messageData = {
-      EmployeeNumber: messages.data.EmployeeXRefCode,
+      EmployeeNumber: messages.EmployeeXrefCode,
       Status: "Failed",
     };
 
-    // const uuid = uuidv4();
     log.info("Message data to save in DB: ", messageData);
 
     const dynamoParams = {
       TableName: "DayforceConcordEventTable",
-      Item: { ...messageData, id: messages.data.EmployeeXRefCode },
+      Item: { ...messageData, id: messages.EmployeeXrefCode },
     };
 
     await dynamoDB.put(dynamoParams).promise();
@@ -135,29 +152,4 @@ export const handler = async (event: any) => {
       body: "Message saved to DynamoDB for failed event",
     };
   }
-};
-
-const getExistingEntries = async (batch: any[]) => {
-  const existingEntries: any[] = [];
-
-
-  const existingEntriesPromises = batch.map(async (message: any) => {
-    const existingEntry = await dynamoDB
-      .query({
-        TableName: "DayforceConcordEventTable",
-        KeyConditionExpression: "id = :id_value",
-        ExpressionAttributeValues: {
-          ":id_value": message.EmployeeXrefCode,
-        },
-      })
-      .promise();
-
-    if (existingEntry.Items && existingEntry.Items.length > 0) {
-      existingEntries.push(existingEntry.Items[0]);
-    }
-  });
-
-  await Promise.all(existingEntriesPromises);
-
-  return existingEntries;
 };
