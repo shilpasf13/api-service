@@ -18,3 +18,11 @@ export function getFormattedDate() {
   const formattedDate = `${year}/${month}/${day}`;
   return formattedDate;
 }
+
+export const isWithinLastFourteenDays = (dateOfHire: string): boolean => {
+  const hireDate = new Date(dateOfHire);
+  const currentDate = new Date();
+  const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
+  const differenceInMs = currentDate.getTime() - hireDate.getTime();
+  return differenceInMs < fourteenDaysInMs;
+};
