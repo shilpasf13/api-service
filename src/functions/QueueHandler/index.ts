@@ -1,7 +1,11 @@
 import { DynamoDB, SQS } from "aws-sdk";
 import { Config } from "../../utils/config";
 import { log } from "../../utils/logger";
-import { getEmailByContactType, getFormattedDate } from "../../utils/helpers";
+import {
+  getEmailByContactType,
+  getFormattedDate,
+  isWithinLastFourteenDays,
+} from "../../utils/helpers";
 
 const dynamoDB = new DynamoDB.DocumentClient();
 const config = new Config();
@@ -52,15 +56,20 @@ export const handler = async (event: any) => {
         const messageBody = JSON.parse(entry.MessageBody);
         const matchingExistingEntries = existingEntries.filter(
           (existingEntry) =>
-            existingEntry.id === messageBody.EmployeeXrefCode &&
-            existingEntry.StateCode === messageBody.StateCode &&
-            existingEntry.ArbitrationUid === ""
+            (existingEntry.id === messageBody.EmployeeXrefCode &&
+              existingEntry.StateCode === messageBody.StateCode &&
+              existingEntry.ArbitrationUid !== "") ||
+            !isWithinLastFourteenDays(messageBody.DateOfHire)
         );
 
         if (matchingExistingEntries.length > 0) {
-          log.info(
-            `Existing data already exists in DynamoDB table with EmployeeXrefCode ${matchingExistingEntries[0].id} and StateCode ${matchingExistingEntries[0].StateCode}`
-          );
+          if (!isWithinLastFourteenDays(messageBody.DateOfHire)) {
+            log.info("Employee Hire Date is more than 14 days.");
+          } else {
+            log.info(
+              `Existing data already exists in DynamoDB table with EmployeeXrefCode ${matchingExistingEntries[0].id} and StateCode ${matchingExistingEntries[0].StateCode}`
+            );
+          }
           return false;
         }
 
@@ -105,7 +114,7 @@ export const handler = async (event: any) => {
       });
 
       try {
-        await Promise.all(putPromises);
+        await Promise.allSettled(putPromises);
 
         const params = {
           Entries: filteredBatchEntries,
