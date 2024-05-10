@@ -2,7 +2,7 @@ import { Config } from "../../utils/config";
 import { TransformManager } from "../../managers/transform-manager";
 import { log } from "../../utils/logger";
 import { SecretManager } from "../../managers/secret-manager";
-import AWS from 'aws-sdk';
+import AWS from "aws-sdk";
 
 const globalConfig = new Config();
 
@@ -49,30 +49,32 @@ export const handler = async (event: any) => {
         parsedBody
       );
 
-      if (parsedBody.EmploymentType === "Caregiver") {
-        const caregiverRequestBody =
-          transformManager.getCaregiverRequestBody(parsedBody);
+      if (parsedBody.StateCode !== "CA") {
+        if (parsedBody.EmploymentType === "Caregiver") {
+          const caregiverRequestBody =
+            transformManager.getCaregiverRequestBody(parsedBody);
 
-        log.info("Caregiver request body", caregiverRequestBody);
+          log.info("Caregiver request body", caregiverRequestBody);
 
-        await transformManager.postRequest(
-          CAREGIVER_API_URL,
-          caregiverRequestBody,
-          config,
-          parsedBody
-        );
-      } else if (parsedBody.EmploymentType === "Non-Caregiver") {
-        const nonCaregiverRequestBody =
-          transformManager.getNonCaregiverRequestBody(parsedBody);
+          await transformManager.postRequest(
+            CAREGIVER_API_URL,
+            caregiverRequestBody,
+            config,
+            parsedBody
+          );
+        } else if (parsedBody.EmploymentType === "Non-Caregiver") {
+          const nonCaregiverRequestBody =
+            transformManager.getNonCaregiverRequestBody(parsedBody);
 
-        log.info("Non-Caregiver request body", nonCaregiverRequestBody);
+          log.info("Non-Caregiver request body", nonCaregiverRequestBody);
 
-        await transformManager.postRequest(
-          NON_CAREGIVER_API_URL,
-          nonCaregiverRequestBody,
-          config,
-          parsedBody
-        );
+          await transformManager.postRequest(
+            NON_CAREGIVER_API_URL,
+            nonCaregiverRequestBody,
+            config,
+            parsedBody
+          );
+        }
       }
     } catch (error) {
       log.error("Error in transform handler:", error);
