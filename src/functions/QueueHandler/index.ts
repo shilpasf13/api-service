@@ -53,27 +53,102 @@ export const handler = async (event: any) => {
       await Promise.all(existingEntriesPromises);
 
       const filteredBatchEntries = batchEntries.filter((entry: any) => {
+        let isChangingFromCAtoNonCA = false;
+        let isChangingToCAfromNonCA = false;
+        let isChangingFromNonCaregiverToCaregiver = false;
+        let isChangingFromCaregiverToNonCaregiver = false;
+
         const messageBody = JSON.parse(entry.MessageBody);
-        const matchingExistingEntries = existingEntries.filter(
+
+        const existingEntry = existingEntries.find(
           (existingEntry) =>
-            (existingEntry.id === messageBody.EmployeeXrefCode &&
-              existingEntry.StateCode === messageBody.StateCode &&
-              existingEntry.ArbitrationUid !== "") ||
-            !isWithinLastFourteenDays(messageBody.DateOfHire)
+            existingEntry.id === messageBody.EmployeeXrefCode &&
+            existingEntry.ArbitrationUid !== "" &&
+            existingEntry.StateCode === messageBody.StateCode &&
+            existingEntry.EmploymentType === messageBody.EmploymentType
         );
 
-        if (matchingExistingEntries.length > 0) {
-          if (!isWithinLastFourteenDays(messageBody.DateOfHire)) {
-            log.info("Employee Hire Date is more than 14 days.");
-          } else {
-            log.info(
-              `Existing data already exists in DynamoDB table with EmployeeXrefCode ${matchingExistingEntries[0].id} and StateCode ${matchingExistingEntries[0].StateCode}`
-            );
-          }
-          return false;
+        if (existingEntry) {
+          return false; // Remove entry if conditions met
         }
 
-        return true;
+        if (
+          existingEntries.some(
+            (existingEntry) =>
+              existingEntry.id === messageBody.EmployeeXrefCode &&
+              existingEntry.StateCode !== "CA" &&
+              messageBody.StateCode === "CA"
+          )
+        ) {
+          isChangingToCAfromNonCA = true;
+          entry.MessageBody = JSON.stringify({
+            ...messageBody,
+            isChangingToCAfromNonCA,
+          });
+
+          // return false;
+        }
+
+        if (!isWithinLastFourteenDays(messageBody.DateOfHire)) {
+          return false; // Remove entry if conditions met
+        }
+
+        if (
+          existingEntries.some(
+            (existingEntry) =>
+              existingEntry.id === messageBody.EmployeeXrefCode &&
+              existingEntry.StateCode === "CA" &&
+              messageBody.StateCode !== "CA"
+          )
+        ) {
+          isChangingFromCAtoNonCA = true;
+          entry.MessageBody = JSON.stringify({
+            ...messageBody,
+            isChangingFromCAtoNonCA,
+          });
+        }
+
+        if (
+          existingEntries.some(
+            (existingEntry) =>
+              existingEntry.id === messageBody.EmployeeXrefCode &&
+              existingEntry.EmploymentType === "Caregiver" &&
+              messageBody.EmploymentType === "Non-Caregiver" &&
+              messageBody.StateCode !== "CA"
+          )
+        ) {
+          isChangingFromCaregiverToNonCaregiver = true;
+          entry.MessageBody = JSON.stringify({
+            ...messageBody,
+            isChangingFromCaregiverToNonCaregiver,
+          });
+        }
+
+        if (
+          existingEntries.some(
+            (existingEntry) =>
+              existingEntry.id === messageBody.EmployeeXrefCode &&
+              existingEntry.EmploymentType === "Non-Caregiver" &&
+              messageBody.EmploymentType === "Caregiver" &&
+              messageBody.StateCode !== "CA"
+          )
+        ) {
+          isChangingFromNonCaregiverToCaregiver = true;
+          entry.MessageBody = JSON.stringify({
+            ...messageBody,
+            isChangingFromNonCaregiverToCaregiver,
+          });
+        }
+
+        entry.MessageBody = JSON.stringify({
+          ...messageBody,
+          isChangingToCAfromNonCA,
+          isChangingFromCAtoNonCA,
+          isChangingFromCaregiverToNonCaregiver,
+          isChangingFromNonCaregiverToCaregiver,
+        });
+
+        return true; // Keep entry if conditions not met
       });
 
       log.info("filtered entries", filteredBatchEntries);
