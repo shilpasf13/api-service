@@ -37,19 +37,35 @@ export const handler = async (event: any) => {
         },
       };
 
-      const arbitrationRequestBody =
-        transformManager.getArbitrationRequestBody(parsedBody);
+      if (parsedBody.isChangingFromCaregiverToNonCaregiver) {
+        if (parsedBody.EmploymentType === "Non-Caregiver") {
+          const nonCaregiverRequestBody =
+            transformManager.getNonCaregiverRequestBody(parsedBody);
 
-      log.info("Arbitration request body", arbitrationRequestBody);
+          log.info("Non-Caregiver request body", nonCaregiverRequestBody);
 
-      await transformManager.postRequest(
-        ARBITRATION_API_URL,
-        arbitrationRequestBody,
-        config,
-        parsedBody
-      );
+          await transformManager.postRequest(
+            NON_CAREGIVER_API_URL,
+            nonCaregiverRequestBody,
+            config,
+            parsedBody
+          );
+        }
+      } else if (parsedBody.isChangingFromNonCaregiverToCaregiver) {
+        if (parsedBody.EmploymentType === "Caregiver") {
+          const caregiverRequestBody =
+            transformManager.getCaregiverRequestBody(parsedBody);
 
-      if (parsedBody.StateCode !== "CA") {
+          log.info("Caregiver request body", caregiverRequestBody);
+
+          await transformManager.postRequest(
+            CAREGIVER_API_URL,
+            caregiverRequestBody,
+            config,
+            parsedBody
+          );
+        }
+      } else if (parsedBody.isChangingFromCAtoNonCA) {
         if (parsedBody.EmploymentType === "Caregiver") {
           const caregiverRequestBody =
             transformManager.getCaregiverRequestBody(parsedBody);
@@ -75,6 +91,46 @@ export const handler = async (event: any) => {
             parsedBody
           );
         }
+      } else {
+        const arbitrationRequestBody =
+          transformManager.getArbitrationRequestBody(parsedBody);
+
+        log.info("Arbitration request body", arbitrationRequestBody);
+
+        await transformManager.postRequest(
+          ARBITRATION_API_URL,
+          arbitrationRequestBody,
+          config,
+          parsedBody
+        );
+
+        if (parsedBody.StateCode !== "CA") {
+          if (parsedBody.EmploymentType === "Caregiver") {
+            const caregiverRequestBody =
+              transformManager.getCaregiverRequestBody(parsedBody);
+
+            log.info("Caregiver request body", caregiverRequestBody);
+
+            await transformManager.postRequest(
+              CAREGIVER_API_URL,
+              caregiverRequestBody,
+              config,
+              parsedBody
+            );
+          } else if (parsedBody.EmploymentType === "Non-Caregiver") {
+            const nonCaregiverRequestBody =
+              transformManager.getNonCaregiverRequestBody(parsedBody);
+
+            log.info("Non-Caregiver request body", nonCaregiverRequestBody);
+
+            await transformManager.postRequest(
+              NON_CAREGIVER_API_URL,
+              nonCaregiverRequestBody,
+              config,
+              parsedBody
+            );
+          }
+        }
       }
     } catch (error) {
       log.error("Error in transform handler:", error);
@@ -83,15 +139,20 @@ export const handler = async (event: any) => {
   };
 
   try {
-    const parsedEventBodies = event.Records.map((record: { body: string }) =>
+    const parsedEventBodies = event.Records.map((record: any) =>
       JSON.parse(record.body)
     );
 
     log.info("event bodies", parsedEventBodies);
 
     const batchSize = 100; // Adjust batch size as needed
-    for (let i = 0; i < parsedEventBodies.length; i += batchSize) {
-      const batch = parsedEventBodies.slice(i, i + batchSize);
+    const filteredEventBodies = parsedEventBodies.filter((eventBody: any) => {
+      // Check if isChangingToCAfromNonCA is true and discard the record
+      return !eventBody.isChangingToCAfromNonCA;
+    });
+
+    for (let i = 0; i < filteredEventBodies.length; i += batchSize) {
+      const batch = filteredEventBodies.slice(i, i + batchSize);
       await Promise.all(batch.map(processEvent));
     }
   } catch (error) {
