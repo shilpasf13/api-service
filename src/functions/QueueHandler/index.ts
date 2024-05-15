@@ -84,9 +84,28 @@ export const handler = async (event: any) => {
           entry.MessageBody = JSON.stringify({
             ...messageBody,
             isChangingToCAfromNonCA,
+            ArbitrationUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode !== "CA" &&
+                  messageBody.StateCode === "CA"
+              ).ArbitrationUid || null,
+            CaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode !== "CA" &&
+                  messageBody.StateCode === "CA"
+              ).CaregiverUid || null,
+            NonCaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode !== "CA" &&
+                  messageBody.StateCode === "CA"
+              ).NonCaregiverUid || null,
           });
-
-          // return false;
         }
 
         if (!isWithinLastFourteenDays(messageBody.DateOfHire)) {
