@@ -57,6 +57,7 @@ export const handler = async (event: any) => {
         let isChangingToCAfromNonCA = false;
         let isChangingFromNonCaregiverToCaregiver = false;
         let isChangingFromCaregiverToNonCaregiver = false;
+        let unchangedStateCA = false;
 
         const messageBody = JSON.parse(entry.MessageBody);
 
@@ -69,7 +70,72 @@ export const handler = async (event: any) => {
         );
 
         if (existingEntry) {
+          log.info(`Existing entry found for ${messageBody.EmployeeXrefCode}`);
           return false; // Remove entry if conditions met
+        }
+
+        if (
+          existingEntries.some(
+            (existingEntry) =>
+              existingEntry.id === messageBody.EmployeeXrefCode &&
+              existingEntry.StateCode === "CA" &&
+              messageBody.StateCode === "CA" &&
+              existingEntry.EmploymentType !== messageBody.EmploymentType
+          )
+        ) {
+          unchangedStateCA = true;
+          entry.MessageBody = JSON.stringify({
+            ...messageBody,
+            unchangedStateCA,
+            ArbitrationUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode === "CA" &&
+                  existingEntry.EmploymentType !== messageBody.EmploymentType
+              ).ArbitrationUid || null,
+            ArbitrationTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode === "CA" &&
+                  existingEntry.EmploymentType !== messageBody.EmploymentType
+              ).ArbitrationTitle || null,
+            CaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode === "CA" &&
+                  existingEntry.EmploymentType !== messageBody.EmploymentType
+              ).CaregiverUid || null,
+            CaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode === "CA" &&
+                  existingEntry.EmploymentType !== messageBody.EmploymentType
+              ).CaregiverTitle || null,
+            NonCaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode === "CA" &&
+                  existingEntry.EmploymentType !== messageBody.EmploymentType
+              ).NonCaregiverUid || null,
+            NonCaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode === "CA" &&
+                  existingEntry.EmploymentType !== messageBody.EmploymentType
+              ).NonCaregiverTitle || null,
+          });
         }
 
         if (
@@ -105,6 +171,27 @@ export const handler = async (event: any) => {
                   existingEntry.StateCode !== "CA" &&
                   messageBody.StateCode === "CA"
               ).NonCaregiverUid || null,
+            ArbitrationTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode !== "CA" &&
+                  messageBody.StateCode === "CA"
+              ).ArbitrationTitle || null,
+            CaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode !== "CA" &&
+                  messageBody.StateCode === "CA"
+              ).CaregiverTitle || null,
+            NonCaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode !== "CA" &&
+                  messageBody.StateCode === "CA"
+              ).NonCaregiverTitle || null,
           });
         }
 
@@ -124,6 +211,48 @@ export const handler = async (event: any) => {
           entry.MessageBody = JSON.stringify({
             ...messageBody,
             isChangingFromCAtoNonCA,
+            ArbitrationUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode !== "CA"
+              ).ArbitrationUid || null,
+            CaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode !== "CA"
+              ).CaregiverUid || null,
+            NonCaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode !== "CA"
+              ).NonCaregiverUid || null,
+            ArbitrationTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode !== "CA"
+              ).ArbitrationTitle || null,
+            CaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode !== "CA"
+              ).CaregiverTitle || null,
+            NonCaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.StateCode === "CA" &&
+                  messageBody.StateCode !== "CA"
+              ).NonCaregiverTitle || null,
           });
         }
 
@@ -140,6 +269,54 @@ export const handler = async (event: any) => {
           entry.MessageBody = JSON.stringify({
             ...messageBody,
             isChangingFromCaregiverToNonCaregiver,
+            ArbitrationUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Caregiver" &&
+                  messageBody.EmploymentType === "Non-Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).ArbitrationUid || null,
+            CaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Caregiver" &&
+                  messageBody.EmploymentType === "Non-Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).CaregiverUid || null,
+            NonCaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Caregiver" &&
+                  messageBody.EmploymentType === "Non-Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).NonCaregiverUid || null,
+            ArbitrationTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Caregiver" &&
+                  messageBody.EmploymentType === "Non-Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).ArbitrationTitle || null,
+            CaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Caregiver" &&
+                  messageBody.EmploymentType === "Non-Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).CaregiverTitle || null,
+            NonCaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Caregiver" &&
+                  messageBody.EmploymentType === "Non-Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).NonCaregiverTitle || null,
           });
         }
 
@@ -156,6 +333,54 @@ export const handler = async (event: any) => {
           entry.MessageBody = JSON.stringify({
             ...messageBody,
             isChangingFromNonCaregiverToCaregiver,
+            ArbitrationUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Non-Caregiver" &&
+                  messageBody.EmploymentType === "Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).ArbitrationUid || null,
+            CaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Non-Caregiver" &&
+                  messageBody.EmploymentType === "Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).CaregiverUid || null,
+            NonCaregiverUid:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Non-Caregiver" &&
+                  messageBody.EmploymentType === "Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).NonCaregiverUid || null,
+            ArbitrationTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Non-Caregiver" &&
+                  messageBody.EmploymentType === "Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).ArbitrationTitle || null,
+            CaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Non-Caregiver" &&
+                  messageBody.EmploymentType === "Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).CaregiverTitle || null,
+            NonCaregiverTitle:
+              existingEntries.find(
+                (existingEntry) =>
+                  existingEntry.id === messageBody.EmployeeXrefCode &&
+                  existingEntry.EmploymentType === "Non-Caregiver" &&
+                  messageBody.EmploymentType === "Caregiver" &&
+                  messageBody.StateCode !== "CA"
+              ).NonCaregiverTitle || null,
           });
         }
 
@@ -165,6 +390,37 @@ export const handler = async (event: any) => {
           isChangingFromCAtoNonCA,
           isChangingFromCaregiverToNonCaregiver,
           isChangingFromNonCaregiverToCaregiver,
+          unchangedStateCA,
+          ArbitrationUid:
+            existingEntries.find(
+              (existingEntry) =>
+                existingEntry.id === messageBody.EmployeeXrefCode
+            ).ArbitrationUid || null,
+          CaregiverUid:
+            existingEntries.find(
+              (existingEntry) =>
+                existingEntry.id === messageBody.EmployeeXrefCode
+            ).CaregiverUid || null,
+          NonCaregiverUid:
+            existingEntries.find(
+              (existingEntry) =>
+                existingEntry.id === messageBody.EmployeeXrefCode
+            ).NonCaregiverUid || null,
+          ArbitrationTitle:
+            existingEntries.find(
+              (existingEntry) =>
+                existingEntry.id === messageBody.EmployeeXrefCode
+            ).ArbitrationTitle || null,
+          CaregiverTitle:
+            existingEntries.find(
+              (existingEntry) =>
+                existingEntry.id === messageBody.EmployeeXrefCode
+            ).CaregiverTitle || null,
+          NonCaregiverTitle:
+            existingEntries.find(
+              (existingEntry) =>
+                existingEntry.id === messageBody.EmployeeXrefCode
+            ).NonCaregiverTitle || null,
         });
 
         return true; // Keep entry if conditions not met
@@ -195,6 +451,12 @@ export const handler = async (event: any) => {
             : null,
           Status: "Success",
           createdAt: getFormattedDate(),
+          ArbitrationUid: message.ArbitrationUid,
+          CaregiverUid: message.CaregiverUid,
+          NonCaregiverUid: message.NonCaregiverUid,
+          ArbitrationTitle: message.ArbitrationTitle,
+          CaregiverTitle: message.CaregiverTitle,
+          NonCaregiverTitle: message.NonCaregiverTitle,
         };
 
         log.info("Data to save in DB: ", data);
