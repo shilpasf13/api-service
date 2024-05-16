@@ -70,7 +70,10 @@ export const handler = async (event: any) => {
         );
 
         if (existingEntry) {
-          log.info(`Existing entry found for ${messageBody.EmployeeXrefCode}`);
+          log.info(
+            `Data already exists in DynamoDB table with EmployeeXrefCode ${existingEntry.id} and StateCode ${existingEntry.StateCode} and employment type ${existingEntry.EmploymentType}`
+          );
+
           return false; // Remove entry if conditions met
         }
 
@@ -196,6 +199,7 @@ export const handler = async (event: any) => {
         }
 
         if (!isWithinLastFourteenDays(messageBody.DateOfHire)) {
+          log.info("Employee Hire Date has past 14 days");
           return false; // Remove entry if conditions met
         }
 
@@ -395,32 +399,32 @@ export const handler = async (event: any) => {
             existingEntries.find(
               (existingEntry) =>
                 existingEntry.id === messageBody.EmployeeXrefCode
-            ).ArbitrationUid || null,
+            )?.ArbitrationUid || null,
           CaregiverUid:
             existingEntries.find(
               (existingEntry) =>
                 existingEntry.id === messageBody.EmployeeXrefCode
-            ).CaregiverUid || null,
+            )?.CaregiverUid || null,
           NonCaregiverUid:
             existingEntries.find(
               (existingEntry) =>
                 existingEntry.id === messageBody.EmployeeXrefCode
-            ).NonCaregiverUid || null,
+            )?.NonCaregiverUid || null,
           ArbitrationTitle:
             existingEntries.find(
               (existingEntry) =>
                 existingEntry.id === messageBody.EmployeeXrefCode
-            ).ArbitrationTitle || null,
+            )?.ArbitrationTitle || null,
           CaregiverTitle:
             existingEntries.find(
               (existingEntry) =>
                 existingEntry.id === messageBody.EmployeeXrefCode
-            ).CaregiverTitle || null,
+            )?.CaregiverTitle || null,
           NonCaregiverTitle:
             existingEntries.find(
               (existingEntry) =>
                 existingEntry.id === messageBody.EmployeeXrefCode
-            ).NonCaregiverTitle || null,
+            )?.NonCaregiverTitle || null,
         });
 
         return true; // Keep entry if conditions not met
@@ -451,12 +455,22 @@ export const handler = async (event: any) => {
             : null,
           Status: "Success",
           createdAt: getFormattedDate(),
-          ArbitrationUid: message.ArbitrationUid,
-          CaregiverUid: message.CaregiverUid,
-          NonCaregiverUid: message.NonCaregiverUid,
-          ArbitrationTitle: message.ArbitrationTitle,
-          CaregiverTitle: message.CaregiverTitle,
-          NonCaregiverTitle: message.NonCaregiverTitle,
+          ArbitrationUid: message.ArbitrationUid
+            ? message.ArbitrationUid
+            : null,
+          CaregiverUid: message.CaregiverUid ? message.CaregiverUid : null,
+          NonCaregiverUid: message.NonCaregiverUid
+            ? message.NonCaregiverUid
+            : null,
+          ArbitrationTitle: message.ArbitrationTitle
+            ? message.ArbitrationTitle
+            : null,
+          CaregiverTitle: message.CaregiverTitle
+            ? message.CaregiverTitle
+            : null,
+          NonCaregiverTitle: message.NonCaregiverTitle
+            ? message.NonCaregiverTitle
+            : null,
         };
 
         log.info("Data to save in DB: ", data);
