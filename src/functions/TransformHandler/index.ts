@@ -147,8 +147,8 @@ export const handler = async (event: any) => {
 
     const batchSize = 100; // Adjust batch size as needed
     const filteredEventBodies = parsedEventBodies.filter((eventBody: any) => {
-      // Check if isChangingToCAfromNonCA or unchangedStateCA is true and discard the record
-      return !eventBody.isChangingToCAfromNonCA || !eventBody.unchangedStateCA;
+      // Check if unchangedStateCA is true OR isChangingToCAfromNonCA is true and discard the record
+      return !(eventBody.unchangedStateCA || eventBody.isChangingToCAfromNonCA);
     });
 
     for (let i = 0; i < filteredEventBodies.length; i += batchSize) {
